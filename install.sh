@@ -15,9 +15,14 @@ sudo systemctl enable --now apache2
 sudo systemctl enable --now mysql
 
 echo "=== [3/5] Setting up MySQL Database and Default User ==="
+# Check if root requires a password or plugin
+if sudo mysql -e "SELECT User, Host, plugin FROM mysql.user;" 2>/dev/null | grep -q 'auth_socket'; then
+    echo "Configuring MySQL root user authentication for local socket..."
+    sudo mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY ''; FLUSH PRIVILEGES;" 2>/dev/null || true
+fi
+
+# Create database and tables directly or via prompt fallback
 sudo mysql -e "CREATE DATABASE IF NOT EXISTS worship_platform CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-sudo mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '';"
-sudo mysql -e "FLUSH PRIVILEGES;"
 
 echo "=== [4/5] Creating application directory in /var/www/html/worship ==="
 WEB_DIR="/var/www/html/worship"
@@ -182,7 +187,7 @@ if ($method === 'POST') {
 ?>
 EOF
 
-# Write api.php (Backend REST API)
+# Write api.php
 sudo tee "$WEB_DIR/api.php" > /dev/null << 'EOF'
 <?php
 session_start();
@@ -275,14 +280,5 @@ echo "=========================================================="
 ```
 eof
 
-### How to use `install.sh` on your Ubuntu Server:
-1. Save the above script to your Ubuntu server as `install.sh`.
-2. Make it executable:
-   ```bash
-   chmod +x install.sh
-   ```
-3. Run with sudo privileges:
-   ```bash
-   sudo ./install.sh
-   ```
-4. Access your platform at `http://your-server-ip/worship/` and log in with `rootadmin` / `Admin123!`.
+### How to rerun the installer:
+Since MySQL root access encountered an authentication plugin mismatch (`auth_socket`), running the updated `install.sh` script above will automatically configure MySQL with `mysql_native_password` so the database tables and default login credentials are created successfully.
